@@ -2,68 +2,33 @@ package servlet;
 
 import annotations.AnnotationController;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import javax.servlet.RequestDispatcher;
-import java.net.URLDecoder;
+import java.util.HashMap;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import java.util.ArrayList;
 import java.util.List;
 
+import utils.Mapping;
+import utils.Function;
+
 public class FrontController extends HttpServlet {
-    private List<Class<?>> Listecontroller;
-    private boolean isChecked;
+    private List<String> controllers;
+    private HashMap<String, Mapping> map;
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        response.setContentType("text/html;charset=UTF-8");
-        StringBuffer url = request.getRequestURL();
-        PrintWriter out = response.getWriter();
-        out.println("It arrived successfully on :  " + url);
-        if (!this.isChecked) {
-            String packageScan = this.getInitParameter("package");
-            try {
-                this.Listecontroller = this.getListeControllers(packageScan);
-                this.isChecked = true;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+    @Override
+    public void init() throws ServletException {
+        String packageToScan = this.getInitParameter("package");
+        try {
+            this.controllers = new Function().getAllclazzsStringAnnotation(packageToScan, AnnotationController.class);
+            this.map = new Function().ControllersMethodScanning(this.controllers);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        for (Class<?> classs : Listecontroller) {
-            out.println(classs.getName());
-        }
-    }
-
-    boolean isController(Class<?> c) {
-        return c.isAnnotationPresent(AnnotationController.class);
-    }
-
-    List<Class<?>> getListeControllers(String packageName) throws Exception {
-        List<Class<?>> res = new ArrayList<Class<?>>();
-        String path = this.getClass().getClassLoader().getResource(packageName.replace('.', '/')).getPath();
-        String decodedPath = URLDecoder.decode(path, "UTF-8");
-        File packageDir = new File(decodedPath);
-
-        File[] files = packageDir.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile() && file.getName().endsWith(".class")) {
-                    String className = packageName + "." + file.getName().replace(".class", "");
-                    Class<?> classe = Class.forName(className);
-                    if (this.isController(classe)) {
-                        res.add(classe);
-                    }
-                }
-            }
-        }
-        return res;
-
     }
 
     @Override
@@ -76,5 +41,29 @@ public class FrontController extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
+    }
+
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        PrintWriter out = response.getWriter();
+        StringBuffer url = request.getRequestURL();
+        // URL to search inside the map
+        String path = new Function().getURLInsideMap(request);
+        out.println("URL inside the map: " + path);
+        // Taking the mapping according to the url
+        if (map.containsKey(path)) {
+            Mapping mapp = map.get(path);
+            out.print("\n");
+            out.println("The method inside the class " + mapp.getClassName() + " " + "is" + " " + mapp.getMethodName());
+        } else {
+            out.print("\n");
+            out.println("No method found in this url");
+        }
+        // show the controllers
+        out.print("\n");
+        out.println("Here are all of your controllers : ");
+        for (String class1 : this.controllers) {
+            out.println(class1); /* print the controllers */
+        }
     }
 }
