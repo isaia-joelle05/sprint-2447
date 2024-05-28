@@ -22,7 +22,7 @@ public class Function {
         return request.getRequestURI().substring(request.getContextPath().length());
     }
 
-    public List<String> getAllclazzsStringAnnotation(String packageName,
+    public List<String> getAllclazzStringAnnotation(String packageName,
             Class<? extends java.lang.annotation.Annotation> annotation) throws Exception {
         List<String> res = new ArrayList<>();
         // root package

@@ -1,5 +1,7 @@
 package utils;
 
+import java.lang.reflect.Method;
+
 public class Mapping {
     String className;
     String methodName;
@@ -26,6 +28,13 @@ public class Mapping {
     public Mapping(String className, String methodName) {
         setClassName(className);
         setMethodName(methodName);
+    }
+
+    public Object invokeMethod() throws Exception {
+        Class<?> clazz = Class.forName(className);
+        Method method = clazz.getDeclaredMethod(methodName);
+        Object in_stance = clazz.getDeclaredConstructor().newInstance();
+        return method.invoke(in_stance);
     }
 
 }

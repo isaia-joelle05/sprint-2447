@@ -24,7 +24,7 @@ public class FrontController extends HttpServlet {
     public void init() throws ServletException {
         String packageToScan = this.getInitParameter("package");
         try {
-            this.controllers = new Function().getAllclazzsStringAnnotation(packageToScan, AnnotationController.class);
+            this.controllers = new Function().getAllclazzStringAnnotation(packageToScan, AnnotationController.class);
             this.map = new Function().ControllersMethodScanning(this.controllers);
         } catch (Exception e) {
             e.printStackTrace();
@@ -50,11 +50,24 @@ public class FrontController extends HttpServlet {
         // URL to search inside the map
         String path = new Function().getURLInsideMap(request);
         out.println("URL inside the map: " + path);
+
         // Taking the mapping according to the url
         if (map.containsKey(path)) {
+
             Mapping mapp = map.get(path);
             out.print("\n");
             out.println("The method inside the class " + mapp.getClassName() + " " + "is" + " " + mapp.getMethodName());
+
+            try {
+                Object result_of_the_method = mapp.invokeMethod();
+                out.println("The result of the execution of the method " + " " + mapp.getMethodName()
+                        + " " + "is : ");
+                out.println(result_of_the_method);
+
+            } catch (Exception e) {
+                out.println("Error during the execution of the method : " + e.getMessage());
+                e.printStackTrace(out);
+            }
         } else {
             out.print("\n");
             out.println("No method found in this url");
