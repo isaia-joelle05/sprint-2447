@@ -6,10 +6,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
 
+import utils.ModelView;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.RequestDispatcher;
 
 import java.util.List;
 
@@ -60,9 +63,22 @@ public class FrontController extends HttpServlet {
 
             try {
                 Object result_of_the_method = mapp.invokeMethod();
-                out.println("The result of the execution of the method " + " " + mapp.getMethodName()
-                        + " " + "is : ");
-                out.println(result_of_the_method);
+                if (result_of_the_method instanceof String) {
+                    out.println("The result of the execution of the method " + " " + mapp.getMethodName()
+                            + " " + "is : " + " " + result_of_the_method);
+                    response.getWriter().write((String) result_of_the_method);
+                } else if (result_of_the_method instanceof ModelView) {
+                    ModelView modelView = (ModelView) result_of_the_method;
+                    String destinationUrl = modelView.getUrl();
+                    HashMap<String, Object> data = modelView.getData();
+                    for (String key : data.keySet()) {
+                        request.setAttribute(key, data.get(key));
+                    }
+                    RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
+                    dispatcher.forward(request, response);
+                } else {
+                    out.println("Return type not found");
+                }
 
             } catch (Exception e) {
                 out.println("Error during the execution of the method : " + e.getMessage());
