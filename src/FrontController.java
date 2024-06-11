@@ -52,15 +52,10 @@ public class FrontController extends HttpServlet {
         StringBuffer url = request.getRequestURL();
         // URL to search inside the map
         String path = new Function().getURLInsideMap(request);
-        out.println("URL inside the map: " + path);
 
         // Taking the mapping according to the url
         if (map.containsKey(path)) {
-
             Mapping mapp = map.get(path);
-            out.print("\n");
-            out.println("The method inside the class " + mapp.getClassName() + " " + "is" + " " + mapp.getMethodName());
-
             try {
                 Object result_of_the_method = mapp.invokeMethod();
                 if (result_of_the_method instanceof String) {
@@ -77,7 +72,7 @@ public class FrontController extends HttpServlet {
                     RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
                     dispatcher.forward(request, response);
                 } else {
-                    out.println("Return type not found");
+                    out.println("Return type not found, neither a String or ModelView");
                 }
 
             } catch (Exception e) {
@@ -86,13 +81,7 @@ public class FrontController extends HttpServlet {
             }
         } else {
             out.print("\n");
-            out.println("No method found in this url");
-        }
-        // show the controllers
-        out.print("\n");
-        out.println("Here are all of your controllers : ");
-        for (String class1 : this.controllers) {
-            out.println(class1); /* print the controllers */
+            out.println("404 NOT FOUND");
         }
     }
 }

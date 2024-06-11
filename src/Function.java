@@ -37,6 +37,9 @@ public class Function {
                 if (file.isFile() && file.getName().endsWith(".class")) {
                     String className = packageName + "." + file.getName().replace(".class", "");
                     Class<?> clazz = Class.forName(className);
+                    if (clazz.getPackage() == null) {
+                        throw new Exception("The class " + className + " is not inside a package.");
+                    }
                     if (clazz.isAnnotationPresent(annotation)) {
                         res.add(clazz.getName());
                     }
@@ -48,6 +51,8 @@ public class Function {
 
     public HashMap<String, Mapping> ControllersMethodScanning(List<String> controllers) throws Exception {
         HashMap<String, Mapping> res = new HashMap<>();
+        HashMap<String, String> urlMap = new HashMap<>();
+
         for (String c : controllers) {
             Class<?> clazz = Class.forName(c);
             // get all the methods inside the class
@@ -55,14 +60,18 @@ public class Function {
             for (Method method : meths) {
                 if (method.isAnnotationPresent(MappingAnnotation.class)) {
                     String url = method.getAnnotation(MappingAnnotation.class).url();
-                    if (res.containsKey(url)) {
-                        String method_present = res.get(url).className + ":" + res.get(url).methodName;
+                    if (urlMap.containsKey(url)) {
+                        String method_present = urlMap.get(url);
                         String new_method = clazz.getName() + ":" + method.getName();
                         throw new Exception("The url " + url + " is already mapped on " + method_present
-                                + "and cannot be mapped on " + new_method + "anymore");
+                                + " and cannot be mapped on " + new_method + " anymore");
+
+                    } else {
+                        // Si l'URL n'est pas déjà présente, l'ajouter à la map
+                        urlMap.put(url, clazz.getName() + ":" + method.getName());
+                        // get the annotation
+                        res.put(url, new Mapping(c, method.getName()));
                     }
-                    // get the annotation
-                    res.put(url, new Mapping(c, method.getName()));
                 }
             }
         }
