@@ -1,6 +1,7 @@
 package servlet;
 
 import annotations.AnnotationController;
+import annotations.ParamAnnotation;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -15,6 +16,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.RequestDispatcher;
 
 import java.util.List;
+import java.lang.reflect.*;
 
 import utils.Mapping;
 import utils.Function;
@@ -53,26 +55,45 @@ public class FrontController extends HttpServlet {
         // URL to search inside the map
         String path = new Function().getURLInsideMap(request);
 
+        if (path.contains("?")) {
+            int index = path.indexOf("?");
+            path = path.substring(0, index);
+        }
+
         // Taking the mapping according to the url
         if (map.containsKey(path)) {
             Mapping mapp = map.get(path);
             try {
-                Object result_of_the_method = mapp.invokeMethod();
-                if (result_of_the_method instanceof String) {
-                    out.println("The result of the execution of the method " + " " + mapp.getMethodName()
-                            + " " + "is : " + " " + result_of_the_method);
-                    response.getWriter().write((String) result_of_the_method);
-                } else if (result_of_the_method instanceof ModelView) {
-                    ModelView modelView = (ModelView) result_of_the_method;
-                    String destinationUrl = modelView.getUrl();
-                    HashMap<String, Object> data = modelView.getData();
-                    for (String key : data.keySet()) {
-                        request.setAttribute(key, data.get(key));
+                Class<?> clazz = Class.forName(mapp.getClassName());
+                Method[] methods = clazz.getDeclaredMethods();
+                Method targetMethod = null;
+
+                for (Method method : methods) {
+                    if (method.getName().equals(mapp.getMethodName())) {
+                        targetMethod = method;
+                        break;
                     }
-                    RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
-                    dispatcher.forward(request, response);
-                } else {
-                    out.println("Return type not found, neither a String or ModelView");
+                }
+
+                if (targetMethod != null) {
+                    Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class);
+                    Object result_of_the_method = targetMethod.invoke(clazz.newInstance(), params);
+
+                    if (result_of_the_method instanceof String) {
+                        out.println("The result of the execution of the method " + " " + mapp.getMethodName()
+                                + " " + "is : " + " " + result_of_the_method);
+                    } else if (result_of_the_method instanceof ModelView) {
+                        ModelView modelView = (ModelView) result_of_the_method;
+                        String destinationUrl = modelView.getUrl();
+                        HashMap<String, Object> data = modelView.getData();
+                        for (String key : data.keySet()) {
+                            request.setAttribute(key, data.get(key));
+                        }
+                        RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
+                        dispatcher.forward(request, response);
+                    } else {
+                        out.println("Return type not found, neither a String or ModelView");
+                    }
                 }
 
             } catch (Exception e) {
