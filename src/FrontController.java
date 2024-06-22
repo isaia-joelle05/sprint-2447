@@ -2,6 +2,7 @@ package servlet;
 
 import annotations.AnnotationController;
 import annotations.ParamAnnotation;
+import annotations.ParamObjectAnnotation;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -76,7 +77,8 @@ public class FrontController extends HttpServlet {
                 }
 
                 if (targetMethod != null) {
-                    Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class);
+                    Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class,
+                            ParamObjectAnnotation.class);
                     Object result_of_the_method = targetMethod.invoke(clazz.newInstance(), params);
 
                     if (result_of_the_method instanceof String) {
