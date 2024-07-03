@@ -15,6 +15,7 @@ import annotations.AnnotationController;
 import annotations.MappingAnnotation;
 import annotations.ParamAnnotation;
 import annotations.ParamObjectAnnotation;
+import utils.MySession;
 
 public class Function {
     boolean isController(Class<?> c) {
@@ -107,12 +108,14 @@ public class Function {
 
     public static Object[] getParameterValue(HttpServletRequest request, Method method,
             Class<ParamAnnotation> annotationClass,
-            Class<ParamObjectAnnotation> paramObjectAnnotationClass) {
+            Class<ParamObjectAnnotation> paramObjectAnnotationClass) throws Exception {
         Parameter[] parameters = method.getParameters();
         Object[] parameterValues = new Object[parameters.length];
         for (int i = 0; i < parameters.length; i++) {
             String paramName;
-            if (parameters[i].isAnnotationPresent(annotationClass)) {
+            if (parameters[i].getType().equals(MySession.class)) {
+                parameterValues[i] = new MySession(request.getSession());
+            } else if (parameters[i].isAnnotationPresent(annotationClass)) {
                 ParamAnnotation param = parameters[i].getAnnotation(annotationClass);
                 paramName = param.value();
                 String paramValue = request.getParameter(paramName);
@@ -139,10 +142,7 @@ public class Function {
                     throw new RuntimeException("Failed to create and populate parameter object: " + e.getMessage());
                 }
             } else {
-                paramName = parameters[i].getName();
-                String paramValue = request.getParameter(paramName);
-                System.out.println("Parameter: " + paramName + " = " + paramValue);
-                parameterValues[i] = convertParameterValue(paramValue, parameters[i].getType());
+                throw new Exception("ETU002447 : There is no annotation parameter in your function");
             }
         }
         return parameterValues;
