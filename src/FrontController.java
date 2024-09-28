@@ -1,6 +1,7 @@
 package servlet;
 
 import annotations.AnnotationController;
+import annotations.JsonAnnotation;
 import annotations.ParamAnnotation;
 import annotations.ParamObjectAnnotation;
 import utils.ModelView;
@@ -85,7 +86,24 @@ public class FrontController extends HttpServlet {
                             ParamObjectAnnotation.class);
                     Object result_of_the_method = targetMethod.invoke(controllerInstance, params);
 
-                    if (result_of_the_method instanceof String) {
+                    if (targetMethod.isAnnotationPresent(JsonAnnotation.class)) {
+                        if (result_of_the_method instanceof ModelView) {
+                            response.setContentType("application/json");
+                            ModelView modelview = (ModelView) result_of_the_method;
+                            String destinationUrl = modelview.getUrl();
+                            HashMap<String, Object> data = modelview.getData();
+                            Gson gson = new Gson();
+                            String jsonModel = gson.toJson(data);
+                            out.println(jsonModel);
+                        } else {
+                            response.setContentType("application/json");
+                            Gson gson = new Gson();
+                            String jsonResult = gson.toJson(result_of_the_method);
+                            out.println(jsonResult);
+                        }
+                    }
+
+                    else if (result_of_the_method instanceof String) {
                         out.println("The result of the execution of the method " + " " + mapp.getMethodName()
                                 + " " + "is : " + " " + result_of_the_method);
                     } else if (result_of_the_method instanceof ModelView) {
