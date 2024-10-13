@@ -10,11 +10,13 @@ import java.util.HashMap;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServlet;
 
 import annotations.AnnotationController;
 import annotations.MappingAnnotation;
 import annotations.ParamAnnotation;
 import annotations.ParamObjectAnnotation;
+import annotations.*;
 import utils.MySession;
 
 public class Function {
@@ -26,32 +28,89 @@ public class Function {
         return request.getRequestURI().substring(request.getContextPath().length());
     }
 
-    public List<String> getAllclazzStringAnnotation(String packageName,
-            Class<? extends java.lang.annotation.Annotation> annotation) throws Exception {
-        List<String> res = new ArrayList<>();
-        // root package
-        String path = this.getClass().getClassLoader().getResource(packageName.replace('.', '/')).getPath();
-        String decodedPath = URLDecoder.decode(path, "UTF-8");
-        File packageDir = new File(decodedPath);
+    // public List<String> getAllclazzStringAnnotation(String packageName,
+    //         Class<? extends java.lang.annotation.Annotation> annotation) throws Exception {
+    //     List<String> res = new ArrayList<>();
+    //     // root package
+    //     String path = this.getClass().getClassLoader().getResource(packageName.replace('.', '/')).getPath();
+    //     String decodedPath = URLDecoder.decode(path, "UTF-8");
+    //     File packageDir = new File(decodedPath);
 
-        // browse all the files inside the package repository
-        File[] files = packageDir.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile() && file.getName().endsWith(".class")) {
-                    String className = packageName + "." + file.getName().replace(".class", "");
-                    Class<?> clazz = Class.forName(className);
-                    if (clazz.getPackage() == null) {
-                        throw new Exception("The class " + className + " is not inside a package.");
-                    }
-                    if (clazz.isAnnotationPresent(annotation)) {
-                        res.add(clazz.getName());
+    //     // browse all the files inside the package repository
+    //     File[] files = packageDir.listFiles();
+    //     if (files != null) {
+    //         for (File file : files) {
+    //             if (file.isFile() && file.getName().endsWith(".class")) {
+    //                 String className = packageName + "." + file.getName().replace(".class", "");
+    //                 Class<?> clazz = Class.forName(className);
+    //                 if (clazz.getPackage() == null) {
+    //                     throw new Exception("The class " + className + " is not inside a package.");
+    //                 }
+    //                 if (clazz.isAnnotationPresent(annotation)) {
+    //                     res.add(clazz.getName());
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return res;
+    // }
+
+    public static HashMap<String, Mapping> getAllclazzStringAnnotation(HttpServlet servlet, String packageName, Class<? extends java.lang.annotation.Annotation> annotation) throws Exception{
+        HashMap<String, Mapping> map = new HashMap<>();
+        try {
+            String path = servlet.getClass().getClassLoader().getResource(packageName.replace('.', '/')).getPath();
+            String decodedPath = URLDecoder.decode(path, "UTF-8");
+            File packageDir = new File(decodedPath);
+
+            if(!packageDir.exists() || !packageDir.isDirectory()) {
+                throw new Exception("The package " + packageName + "does not exist");
+            }
+
+            File[] files = packageDir.listFiles();
+            if(files != null){
+                for (File file : files) {
+                    if(file.isFile() && file.getName().endsWith(".class")) {
+                        String className = packageName + "." + file.getName().replace(".class", "");
+                        Class<?> clazz = Class.forName(className);
+
+                        if(clazz.isAnnotationPresent(annotation.asSubclass(java.lang.annotation.Annotation.class))) {
+                            Method[] methods = clazz.getDeclaredMethods();
+
+                            for(Method m : methods) {
+                                if(m.isAnnotationPresent(MappingAnnotation.class)) {
+                                    MappingAnnotation urlAnnotation = m.getAnnotation(MappingAnnotation.class);
+                                    String url = urlAnnotation.url();
+
+                                    if(!map.containsKey(url)) {
+                                        map.put(url, new Mapping(clazz.getName()));
+                                    }
+
+                                    boolean isGet = m.isAnnotationPresent(Get.class);
+                                    boolean isPost = m.isAnnotationPresent(Post.class);
+                                    if (!isGet && !isPost) {
+                                        isGet = true;
+                                    }
+
+                                    String verb = null;
+                                    if (isGet) {
+                                        verb = "GET";
+                                    } else {
+                                        verb = "POST";
+                                    }
+                                    map.get(url).addVerbAction(m.getName(), verb);
+                                }
+                            }
+                        }
                     }
                 }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return res;
+        return map;
     }
+
+
 
     public HashMap<String, Mapping> ControllersMethodScanning(List<String> controllers) throws Exception {
         HashMap<String, Mapping> res = new HashMap<>();
@@ -74,7 +133,7 @@ public class Function {
                         // Si l'URL n'est pas déjà présente, l'ajouter à la map
                         urlMap.put(url, clazz.getName() + ":" + method.getName());
                         // get the annotation
-                        res.put(url, new Mapping(c, method.getName()));
+                        res.put(url, new Mapping(method.getName()));
                     }
                 }
             }
