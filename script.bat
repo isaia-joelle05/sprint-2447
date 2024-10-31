@@ -1,7 +1,7 @@
 @echo off
 @REM Compile Framework
 
-set DESTINATION_DIR="C:\Users\isaia\Documents\S4\MrNaina\frame\testSprint9\WEB-INF"
+set DESTINATION_DIR="C:\Users\isaia\Documents\S4\MrNaina\frame\testSprint12\WEB-INF"
 set LIB_SERVLET="C:\apache-tomcat-9.0.74\apache-tomcat-9.0.74\lib"
 
 if not exist "%DESTINATION_DIR%\lib" (

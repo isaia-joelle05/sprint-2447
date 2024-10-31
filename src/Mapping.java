@@ -1,20 +1,17 @@
 package utils;
 
 import java.lang.reflect.Method;
-import utils.VerbAction;
-import java.util.*;
 
 public class Mapping {
     String className;
-    List<VerbAction> VerbAction;
+    String methodName;
 
-    public Mapping() {
-        
+    public String getMethodName() {
+        return methodName;
     }
 
-    public Mapping(String className) {
-        this.className = className;
-        this.VerbAction = new ArrayList<>();
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
     }
 
     public String getClassName() {
@@ -25,12 +22,19 @@ public class Mapping {
         this.className = className;
     }
 
-    public List<VerbAction> getVerbAction() {
-        return VerbAction;
+    public Mapping() {
     }
 
-    public void addVerbAction(String method, String verb) {
-        this.VerbAction.add(new VerbAction(method, verb));
+    public Mapping(String className, String methodName) {
+        setClassName(className);
+        setMethodName(methodName);
+    }
+
+    public Object invokeMethod() throws Exception {
+        Class<?> clazz = Class.forName(className);
+        Method method = clazz.getDeclaredMethod(methodName);
+        Object in_stance = clazz.getDeclaredConstructor().newInstance();
+        return method.invoke(in_stance);
     }
 
 }
