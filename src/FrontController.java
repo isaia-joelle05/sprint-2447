@@ -87,7 +87,7 @@ public class FrontController extends HttpServlet {
                 return;
             }
 
-            Object[] params = Function.getParameterValue(request, targetMethod, ParamAnnotation.class, ParamObjectAnnotation.class);
+            Object[] params = Function.getParameterValue(request, response, targetMethod, ParamAnnotation.class, ParamObjectAnnotation.class);
             Object controllerInstance = clazz.getDeclaredConstructor().newInstance();
 
             // Initialize MySession if required by the controller
