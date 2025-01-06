@@ -14,6 +14,7 @@ import annotations.AnnotationController;
 import annotations.MappingAnnotation;
 import annotations.ParamAnnotation;
 import annotations.ParamObjectAnnotation;
+import annotations.TypeValidationAnnotation;
 
 public class Function {
     boolean isController(Class<?> c) {
@@ -101,6 +102,61 @@ public class Function {
         return null;
     }
 
+    public static List<String> verifyValidation(Object obj) throws IllegalAccessException {
+        List<String> errors = new ArrayList<>();
+
+        for (Field field : obj.getClass().getDeclaredFields()) {
+            field.setAccessible(true); 
+
+            Object value = field.get(obj);
+
+            if (field.isAnnotationPresent(TypeValidationAnnotation.NotNull.class)) {
+                TypeValidationAnnotation.NotNull notNull = field.getAnnotation(TypeValidationAnnotation.NotNull.class);
+                if (value == null) {
+                    errors.add(notNull.value());
+                }
+            }
+
+            if (field.isAnnotationPresent(TypeValidationAnnotation.Min.class) && value instanceof Number) {
+                TypeValidationAnnotation.Min min = field.getAnnotation(TypeValidationAnnotation.Min.class);
+                if (((Number) value).intValue() < min.value()) {
+                    errors.add(min.message());
+                }
+            }
+
+            if (field.isAnnotationPresent(TypeValidationAnnotation.Max.class) && value instanceof Number) {
+                TypeValidationAnnotation.Max max = field.getAnnotation(TypeValidationAnnotation.Max.class);
+                if (((Number) value).intValue() > max.value()) {
+                    errors.add(max.message());
+                }
+            }
+
+            if (field.isAnnotationPresent(TypeValidationAnnotation.Pattern.class) && value != null) {
+                TypeValidationAnnotation.Pattern pattern = field.getAnnotation(TypeValidationAnnotation.Pattern.class);
+                if (!value.toString().matches(pattern.regex())) {
+                    errors.add(pattern.message());
+                }
+            }
+
+            if (field.isAnnotationPresent(TypeValidationAnnotation.NotEmpty.class) && value != null) {
+                TypeValidationAnnotation.NotEmpty notEmpty = field.getAnnotation(TypeValidationAnnotation.NotEmpty.class);
+                if (value.toString().isEmpty()) {
+                    errors.add(notEmpty.message());
+                }
+            }
+
+            if (field.isAnnotationPresent(TypeValidationAnnotation.Positive.class) && value instanceof Number) {
+                TypeValidationAnnotation.Positive positive = field.getAnnotation(TypeValidationAnnotation.Positive.class);
+                if (((Number) value).intValue() <= 0) {
+                    errors.add(positive.message());
+                }
+            }
+        }
+        return errors;
+    }
+
+
+
     public static Object[] getParameterValue(HttpServletRequest request, Method method,
             Class<ParamAnnotation> annotationClass,
             Class<ParamObjectAnnotation> paramObjectAnnotationClass) throws Exception {
@@ -130,6 +186,12 @@ public class Function {
                             field.setAccessible(true);
                             field.set(paramObjectInstance, convertParameterValue(paramValue, field.getType()));
                         }
+                    }
+                    List<String> validationErrors = verifyValidation(paramObjectInstance);
+                    if (!validationErrors.isEmpty()) {
+                        System.out.println("Validation errors for object: " + objName);
+                        validationErrors.forEach(System.out::println);
+                        throw new Exception("Validation errors: " + validationErrors);
                     }
                     parameterValues[i] = paramObjectInstance;
                 } catch (Exception e) {
