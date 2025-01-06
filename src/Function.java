@@ -5,15 +5,19 @@ import java.lang.reflect.*;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.ServletException;
+import javax.servlet.http.*;
+import javax.servlet.*;
 
 import annotations.AnnotationController;
 import annotations.MappingAnnotation;
 import annotations.ParamAnnotation;
 import annotations.ParamObjectAnnotation;
+import annotations.isError;
 import annotations.TypeValidationAnnotation;
 
 public class Function {
@@ -102,10 +106,11 @@ public class Function {
         return null;
     }
 
-    public static List<String> verifyValidation(Object obj) throws IllegalAccessException {
-        List<String> errors = new ArrayList<>();
+    public static Map<String, String> verifyValidation(Object obj) throws IllegalAccessException {
+        Map<String, String> errors =  new HashMap<>();
+        Field[] fields = obj.getClass().getDeclaredFields();
 
-        for (Field field : obj.getClass().getDeclaredFields()) {
+        for (Field field : fields) {
             field.setAccessible(true); 
 
             Object value = field.get(obj);
@@ -113,42 +118,42 @@ public class Function {
             if (field.isAnnotationPresent(TypeValidationAnnotation.NotNull.class)) {
                 TypeValidationAnnotation.NotNull notNull = field.getAnnotation(TypeValidationAnnotation.NotNull.class);
                 if (value == null) {
-                    errors.add(notNull.value());
+                    errors.put(field.getName(), notNull.value());
                 }
             }
 
             if (field.isAnnotationPresent(TypeValidationAnnotation.Min.class) && value instanceof Number) {
                 TypeValidationAnnotation.Min min = field.getAnnotation(TypeValidationAnnotation.Min.class);
                 if (((Number) value).intValue() < min.value()) {
-                    errors.add(min.message());
+                    errors.put(field.getName(), min.message());
                 }
             }
 
             if (field.isAnnotationPresent(TypeValidationAnnotation.Max.class) && value instanceof Number) {
                 TypeValidationAnnotation.Max max = field.getAnnotation(TypeValidationAnnotation.Max.class);
                 if (((Number) value).intValue() > max.value()) {
-                    errors.add(max.message());
+                    errors.put(field.getName(), max.message());
                 }
             }
 
             if (field.isAnnotationPresent(TypeValidationAnnotation.Pattern.class) && value != null) {
                 TypeValidationAnnotation.Pattern pattern = field.getAnnotation(TypeValidationAnnotation.Pattern.class);
                 if (!value.toString().matches(pattern.regex())) {
-                    errors.add(pattern.message());
+                    errors.put(field.getName(), pattern.message());
                 }
             }
 
             if (field.isAnnotationPresent(TypeValidationAnnotation.NotEmpty.class) && value != null) {
                 TypeValidationAnnotation.NotEmpty notEmpty = field.getAnnotation(TypeValidationAnnotation.NotEmpty.class);
                 if (value.toString().isEmpty()) {
-                    errors.add(notEmpty.message());
+                    errors.put(field.getName(), notEmpty.message());
                 }
             }
 
             if (field.isAnnotationPresent(TypeValidationAnnotation.Positive.class) && value instanceof Number) {
                 TypeValidationAnnotation.Positive positive = field.getAnnotation(TypeValidationAnnotation.Positive.class);
                 if (((Number) value).intValue() <= 0) {
-                    errors.add(positive.message());
+                    errors.put(field.getName(), positive.message());
                 }
             }
         }
@@ -156,8 +161,7 @@ public class Function {
     }
 
 
-
-    public static Object[] getParameterValue(HttpServletRequest request, Method method,
+    public static Object[] getParameterValue(HttpServletRequest request, HttpServletResponse response, Method method,
             Class<ParamAnnotation> annotationClass,
             Class<ParamObjectAnnotation> paramObjectAnnotationClass) throws Exception {
         Parameter[] parameters = method.getParameters();
@@ -177,6 +181,10 @@ public class Function {
                 String objName = paramObject.objectName();
                 try {
                     Object paramObjectInstance = parameters[i].getType().getDeclaredConstructor().newInstance();
+
+                    Map<String, String> fieldsValues = new HashMap<>();
+                    Map<String, String> validationErrors = new HashMap<>();
+
                     Field[] fields = parameters[i].getType().getDeclaredFields();
                     for (Field field : fields) {
                         String fieldName = field.getName();
@@ -187,10 +195,25 @@ public class Function {
                             field.set(paramObjectInstance, convertParameterValue(paramValue, field.getType()));
                         }
                     }
-                    List<String> validationErrors = verifyValidation(paramObjectInstance);
+                    validationErrors = verifyValidation(paramObjectInstance);
                     if (!validationErrors.isEmpty()) {
+                        request.setAttribute("errors", validationErrors);
+                        request.setAttribute("values", fieldsValues);
+                        
+                        isError iserr = method.getAnnotation(isError.class);
+                        if(iserr != null) {
+                            String errUrl = iserr.url();
+                            HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request) {
+
+                                @Override
+                                public String getMethod() {
+                                    return "GET";
+                                }
+                            };
+                            RequestDispatcher dispatcher = request.getRequestDispatcher(errUrl);
+                            dispatcher.forward(wrappedRequest, response);
+                        }
                         System.out.println("Validation errors for object: " + objName);
-                        validationErrors.forEach(System.out::println);
                         throw new Exception("Validation errors: " + validationErrors);
                     }
                     parameterValues[i] = paramObjectInstance;
