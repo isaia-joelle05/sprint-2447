@@ -117,7 +117,15 @@ public class FrontController extends HttpServlet {
 
     private void handleResponse(Object result, Method targetMethod, HttpServletRequest request,
                                 HttpServletResponse response, PrintWriter out) throws IOException, ServletException {
-        if (targetMethod.isAnnotationPresent(JsonAnnotation.class)) {
+        if (result instanceof FileExport) {
+            FileExport export = (FileExport) result;
+            response.reset(); 
+            response.setContentType(export.getFileType());
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + export.getFileName() + "\"");
+            response.getOutputStream().write(export.getContent());
+            response.getOutputStream().flush();
+        }else if (targetMethod.isAnnotationPresent(JsonAnnotation.class)) {
+            response.reset();
             response.setContentType("application/json");
             Gson gson = new Gson();
             if (result instanceof ModelView) {
@@ -126,8 +134,13 @@ public class FrontController extends HttpServlet {
             } else {
                 out.println(gson.toJson(result));
             }
+            out.flush();
         } else if (result instanceof String) {
+            response.reset();
+            response.setContentType("text/html");
+            out = response.getWriter();
             out.println("Resultat de l'execution de la méthode " + targetMethod.getName() + " est " + result);
+            out.flush();
         } else if (result instanceof ModelView) {
             ModelView modelView = (ModelView) result;
             String destinationUrl = modelView.getUrl();
@@ -138,7 +151,19 @@ public class FrontController extends HttpServlet {
             RequestDispatcher dispatcher = request.getRequestDispatcher(destinationUrl);
             dispatcher.forward(request, response);
         } else {
+            response.reset();
+            response.setContentType("text/html");
             out.println("Le type de retour n'est ni un String ni un ModelView");
+            out.flush();
         }
+    }
+
+    private void handleError(HttpServletResponse response, Exception e) throws IOException {
+        response.reset();
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        e.printStackTrace(out);
+        out.print("Erreur lors de l'exécution de la méthode : " + e.getMessage());
+        out.flush();
     }
 }
